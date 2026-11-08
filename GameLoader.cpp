@@ -124,7 +124,7 @@ void Sound::Read()
 	HittingBGMSelect = 0;
 
 	// 効果音
-	Reelfinish = LoadSoundMem("reelok.mp3");
+	Reelfinish = LoadSoundMem("Punch.mp3");
 	Reachstart = LoadSoundMem("yashima.wav");
 	whiteout = LoadSoundMem("horror_9.mp3");
 	ReachPut = LoadSoundMem("wadaiko.mp3");

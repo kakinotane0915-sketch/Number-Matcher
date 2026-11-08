@@ -23,6 +23,35 @@ namespace
 	constexpr float JUMP_SPEED_Y = -25.0f; // 飛び上がる時の初速(マイナス=上)
 	constexpr float JUMP_GRAVITY = 15.5f;  // 飛び上がり中の重力
 	constexpr float DROP_GRAVITY = 2.5f;   // 落下中の重力
+
+	// 残り回数の表示
+	constexpr int TIMES_CENTER_X = 60;     // 中央揃えの基準X(背景画像の中心)
+	constexpr int TIMES_Y = 400;
+	constexpr int DIGIT_SPACING = 38;     // 数字1桁ぶんの間隔(px)
+
+	// リザルト画面の表示
+	constexpr int RESULT_NUMBER_X = 500; // 2桁の数字の中心X
+	constexpr int RESULT_NUMBER_Y = 200;
+	constexpr int ROULETTE_TENS_END = 200; // 十の位が止まるフレーム
+	constexpr int ROULETTE_ONES_END = 240; // 一の位が止まるフレーム(= ルーレット音を止める)
+
+	// 数値を中央揃えで描画する(centerX が数字全体の中心になる)
+	void DrawNumberCentered(int centerX, int y, int value)
+	{
+		if (value < 0) value = 0;
+		int digits = static_cast<int>(std::to_string(value).size());
+		int startX = centerX - DIGIT_SPACING * (digits - 1) / 2; // 先頭の桁の中心X
+		TEXT.DrawNumber(startX, y, value, DIGIT_SPACING);
+	}
+
+	// 十の位・一の位を指定して2桁の数字を描画する(centerX が2桁の中心)
+	void DrawTwoDigits(int centerX, int y, int tens, int ones)
+	{
+		int leftX = centerX - DIGIT_SPACING / 2;
+		int rightX = centerX + DIGIT_SPACING / 2;
+		DrawRotaGraph(leftX, y, 1.0f, 0, TEXT.Number[tens], true);
+		DrawRotaGraph(rightX, y, 1.0f, 0, TEXT.Number[ones], true);
+	}
 }
 
 void Kakuhen::Read()
@@ -194,8 +223,8 @@ void Kakuhen::Reseting()
 
 	// 次の回転の速さを抽選(1/3でゆっくり)
 	pace = (GetRand(2) == 0) ? 1 : 5;
-	
-	//   1回前の pace のずれ幅になっていた
+
+	// pace を決めた後に計算する(先に計算すると1回前の pace のずれ幅になる)
 	OffsetTime = 20 / pace;
 	SetTimers();
 
@@ -213,39 +242,42 @@ void Kakuhen::Draw(int i)
 	DrawRotaGraph(X[i], Y[i], 0.8f, 0, GL.Symbol_GraphHandle[Number_Hit[i]], true);
 }
 
-// 残り回数を左下に表示
+// 残り回数を左下に表示(桁数が変わっても背景画像の中央に来るようにする)
 void Kakuhen::DrawTimes()
 {
-	DrawRotaGraph(60, 400, 1.0f, 0, RemainingTimes_BackImage, true);
-	TEXT.DrawNumber(20, 400, RemainingTimes, 38);
+	DrawRotaGraph(TIMES_CENTER_X, TIMES_Y, 1.0f, 0, RemainingTimes_BackImage, true);
+	DrawNumberCentered(TIMES_CENTER_X, TIMES_Y, RemainingTimes);
 }
 
-// リザルト画面:ルーレット音を鳴らし、240フレームで止める
+// リザルト画面:ルーレット音を鳴らし、一の位が止まるタイミングで止める
 void Kakuhen::EndOut()
 {
 	if (SC.is_change == true) return;  // シャッター演出が終わるまで待つ
 
 	EndTimes++;
-	if (EndTimes == 1)   PlaySoundMem(SOUND.Roulette, DX_PLAYTYPE_LOOP);
-	if (EndTimes == 240) StopSoundMem(SOUND.Roulette);
+	if (EndTimes == 1)                 PlaySoundMem(SOUND.Roulette, DX_PLAYTYPE_LOOP);
+	if (EndTimes == ROULETTE_ONES_END) StopSoundMem(SOUND.Roulette);
 }
 
-// リザルト画面:「BONUS ○回」を表示(240フレームまではルーレット風に数字が回る)
+// リザルト画面:「BONUS ○○回」を2桁で表示
+//  ルーレット風に2桁とも回し、十の位 → 一の位 の順に止める
 void Kakuhen::EndDraw()
 {
 	if (SC.is_change == true) return;
 
-	DrawRotaGraph(250, 200, 1.0f, 0, BONUS_Image, true);
+	DrawRotaGraph(250, RESULT_NUMBER_Y, 1.0f, 0, BONUS_Image, true);
 
-	if (EndTimes <= 240)
-	{
-		// ルーレット中:数字をぐるぐる回す
-		DrawRotaGraph(500, 200, 1.0f, 0, TEXT.Number[EndTimes % 10], true);
-	}
-	else
-	{
-		// 確定:確変中に当たった回数(最初の当たりを除く)
-		
-		TEXT.DrawNumber(500, 200, HittingTimes - 1, 38);
-	}
+	// 確定する値:確変中に当たった回数(最初の当たりを除く)。2桁(0〜99)に収める
+	int result = HittingTimes - 1;
+	if (result < 0)  result = 0;
+	if (result > 99) result = 99;
+
+	// 十の位:ROULETTE_TENS_END までは回転、それ以降は確定
+	//  (一の位と同じ速さだと同時に動いて見えるので、少し遅く回す)
+	int tens = (EndTimes <= ROULETTE_TENS_END) ? (EndTimes / 3) % 10 : result / 10;
+
+	// 一の位:ROULETTE_ONES_END までは回転、それ以降は確定
+	int ones = (EndTimes <= ROULETTE_ONES_END) ? EndTimes % 10 : result % 10;
+
+	DrawTwoDigits(RESULT_NUMBER_X, RESULT_NUMBER_Y, tens, ones);
 }
