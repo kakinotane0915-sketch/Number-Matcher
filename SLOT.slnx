@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="SLOT.vcxproj" Id="8b29fbd1-562c-4266-a563-22137f0e7b40" />
+</Solution>
